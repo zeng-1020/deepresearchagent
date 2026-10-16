@@ -19,8 +19,13 @@ from deepresearch.agent import (
     stream_question,
     stream_resume_question,
 )
-from deepresearch.checkpointing import get_checkpoint_tuple, open_sqlite_checkpointer
+from deepresearch.checkpointing import (
+    DEFAULT_CHECKPOINT_DB,
+    get_checkpoint_tuple,
+    open_sqlite_checkpointer,
+)
 from deepresearch.events import ResearchEvent
+from deepresearch.export import DEFAULT_EXPORT_DIR, export_runs
 from deepresearch.config import Settings
 from deepresearch.evaluation.bootstrap import get_evaluation_provider
 from deepresearch.evaluation.config import EvaluationConfig
@@ -199,6 +204,42 @@ def build_parser() -> argparse.ArgumentParser:
     )
     inspect.add_argument("thread_id", help="要查看的任务 ID")
 
+    export = subparsers.add_parser(
+        "export",
+        help="把已保存的研究任务导出为本地 Markdown 文件，不调用模型",
+    )
+    export.add_argument(
+        "--db",
+        default=str(DEFAULT_CHECKPOINT_DB),
+        help=f"Checkpoint 数据库路径（默认 {DEFAULT_CHECKPOINT_DB}）",
+    )
+    export.add_argument(
+        "-o",
+        "--output-dir",
+        default=str(DEFAULT_EXPORT_DIR),
+        help=f"导出目录（默认 {DEFAULT_EXPORT_DIR}）",
+    )
+    export.add_argument(
+        "--thread",
+        action="append",
+        help="只导出指定任务 ID，可重复传入；默认导出全部",
+    )
+    export.add_argument(
+        "--list",
+        action="store_true",
+        help="只列出任务，不写入任何文件",
+    )
+    export.add_argument(
+        "--force",
+        action="store_true",
+        help="覆盖已存在的导出文件（默认跳过，不覆盖已有内容）",
+    )
+    export.add_argument(
+        "--with-trace",
+        action="store_true",
+        help="额外附带完整执行轨迹（治理、记忆、Skill 等程序统计）",
+    )
+
     skills = subparsers.add_parser(
         "skills",
         help="验证、查看和管理本地 Skill 目录",
@@ -263,6 +304,42 @@ def _serve_web(host: str, port: int, *, reload: bool) -> int:
         port=port,
         reload=reload,
     )
+    return 0
+
+
+def _export_runs(args: argparse.Namespace) -> int:
+    """Export persisted research runs and print a human-readable summary."""
+
+    outcome = export_runs(
+        database_path=args.db,
+        output_dir=args.output_dir,
+        thread_ids=args.thread,
+        overwrite=args.force,
+        with_trace=args.with_trace,
+        dry_run=args.list,
+    )
+    for thread_id in outcome.missing:
+        print(f"警告：任务 {thread_id} 不存在，已跳过。")
+    for thread_id, reason in outcome.failed:
+        print(f"警告：读取任务 {thread_id} 失败，已跳过：{reason}")
+
+    if args.list:
+        if not outcome.runs:
+            print("没有找到可导出的任务。")
+            return 0
+        print(f"共 {len(outcome.runs)} 个任务（按执行顺序）：")
+        print()
+        print(outcome.index_markdown)
+        return 0
+
+    print(f"导出目录：{outcome.export_dir.resolve()}")
+    print(f"任务数量：{len(outcome.runs)}（新写入 {len(outcome.written)} 个）")
+    if outcome.skipped:
+        print(f"已跳过 {len(outcome.skipped)} 个已存在的文件（加 --force 可覆盖）：")
+        for name in outcome.skipped:
+            print(f"  - {name}")
+    print()
+    print(f"索引已更新：{outcome.index_path}")
     return 0
 
 
@@ -448,6 +525,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "inspect":
             print(_checkpoint_summary(args.thread_id))
             return 0
+        if args.command == "export":
+            return _export_runs(args)
         if args.command == "demo":
             result = run_demo(args.question)
         elif args.command == "resume":

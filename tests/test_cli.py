@@ -202,6 +202,46 @@ def test_inspect_reports_missing_thread(monkeypatch, capsys, tmp_path) -> None: 
     assert "错误：找不到任务：missing-thread" in output
 
 
+def test_export_writes_markdown_without_model(monkeypatch, capsys, tmp_path) -> None:  # noqa: ANN001
+    monkeypatch.chdir(tmp_path)
+    with open_sqlite_checkpointer() as checkpointer:
+        run_with_model(
+            "导出问题",
+            FakeMessagesListChatModel(responses=[AIMessage(content="导出答案")]),
+            checkpointer=checkpointer,
+            thread_id="export-cli",
+        )
+
+    assert main(["export"]) == 0
+    first_output = capsys.readouterr().out
+    assert "任务数量：1（新写入 1 个）" in first_output
+    assert "索引已更新" in first_output
+
+    export_dir = tmp_path / "reports" / "exports"
+    index = (export_dir / "INDEX.md").read_text(encoding="utf-8")
+    assert "导出问题" in index
+    assert "| 未生成 |" in index
+
+    assert main(["export"]) == 0
+    second_output = capsys.readouterr().out
+    assert "已跳过 1 个已存在的文件（加 --force 可覆盖）" in second_output
+
+    assert main(["export", "--list"]) == 0
+    list_output = capsys.readouterr().out
+    assert "共 1 个任务（按执行顺序）：" in list_output
+    assert "export-cli" in list_output
+
+
+def test_export_reports_missing_database(monkeypatch, capsys, tmp_path) -> None:  # noqa: ANN001
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["export"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 1
+    assert "错误：找不到 Checkpoint 数据库" in output
+
+
 def test_run_passes_explicit_skill_overrides(monkeypatch, capsys) -> None:  # noqa: ANN001
     result = ResearchResult(
         question="测试问题",
