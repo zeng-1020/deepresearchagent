@@ -20,7 +20,7 @@ def _error_payload(query: str, message: str) -> str:
     )
 
 
-@tool("web_search", parse_docstring=True)
+@tool("web_search", parse_docstring=True)         #从函数的文档字符串里提取工具描述”
 def web_search_tool(query: str, max_results: int = DEFAULT_MAX_RESULTS) -> str:
     """Search the public web for current information and possible sources.
 

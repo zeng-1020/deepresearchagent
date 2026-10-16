@@ -144,7 +144,7 @@ class ContextSummarizer:
         return units
 
     @staticmethod
-    def _remove_pairing_orphans(messages: list[BaseMessage]) -> list[BaseMessage]:
+    def _remove_pairing_orphans(messages: list[BaseMessage]) -> list[BaseMessage]:      #移除只有单一节点，比如只有工具调用但没有结果的孤儿节点
         clean = list(messages)
         while True:
             ai_tool_ids = {
@@ -312,3 +312,9 @@ class ContextSummarizer:
             summary_message=summary_message,
             summary_id=summary_id,
         )
+#plan：分区，分出“要压缩的”和“要保留的”
+#_remove_pairing_orphans：清理孤儿节点，保证成对
+#summarize：调用 LLM 生成摘要
+#compacted_messages：构造 patch，用摘要替换旧历史
+#summary_id：确定性 ID，方便去重和追踪
+#additional_kwargs：三个标记，让程序知道消息用途

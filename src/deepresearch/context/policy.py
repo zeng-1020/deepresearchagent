@@ -9,7 +9,8 @@ from deepresearch.context.types import ContextStage
 
 @dataclass(frozen=True)
 class ContextThresholds:
-    """Ordered utilization thresholds for the P1-P5 governance stages."""
+    """Ordered utilization thresholds for the P1-P5 governance stages."""   
+#这些阈值是利用率（current_tokens / window_tokens），不是 token 数。0.40 意思是“上下文用了 40%”。
 
     p1_externalize: float = 0.40
     p2_thinking: float = 0.50

@@ -154,7 +154,7 @@ def build_agent(
     resolved_tools = list(tools or [])
     tool_names = {tool.name for tool in resolved_tools}
     system_prompt = SEARCH_SYSTEM_PROMPT if resolved_tools else BASE_SYSTEM_PROMPT
-    include_research_context = "write_research_plan" in tool_names
+    include_research_context = "write_research_plan" in tool_names    #这是一个条件开关：只有当工具有 write_research_plan 时，才启用“研究上下文”相关逻辑。
     resolved_memory_config = memory_config or MemoryConfig()
     memory_renderer = (
         MemoryContextRenderer(
@@ -163,7 +163,7 @@ def build_agent(
         )
         if memory_provider is not None
         else None
-    )
+    )#它负责把长期记忆渲染成模型能读的文本，并受 token_budget 限制。也就是说，它不是把所有记忆都塞进 Prompt，而是按预算筛选。
     resolved_skill_config = skill_config or (
         skill_manager.config if skill_manager is not None else SkillConfig()
     )
@@ -178,7 +178,7 @@ def build_agent(
     context_assembler = ContextAssembler(
         memory_context_provider=memory_renderer,
         skill_context_provider=skill_renderer,
-    )
+    )#  把记忆渲染器和 Skill 渲染器组装成一个 ContextAssembler。它的职责：在每次模型调用前，把长期记忆 + Skill 注入到 Prompt 里。
 
     def project_model_messages(state: ResearchState) -> list[BaseMessage]:
         assembled = context_assembler.assemble(
@@ -344,7 +344,7 @@ def run_with_model(
 
     normalized_question = question.strip()
     if not normalized_question:
-        raise ValueError("研究问题不能为空。")
+        raise ValueError("研究问题不能为空。")  #把问题去掉首尾空格，如果为空就报错。
 
     resolved_thread_id, config = resolve_checkpoint_run(checkpointer, thread_id)
     if checkpointer is not None and resolved_thread_id is not None:
@@ -981,4 +981,4 @@ def run_demo(question: str = "这个最小 Agent 的执行链是否已经跑通�
             )
         ]
     )
-    return run_with_model(question, fake_model)
+    return run_with_model(question, fake_model)  #把问题和假模型交给 run_with_model

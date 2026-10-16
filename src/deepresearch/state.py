@@ -4,6 +4,8 @@ The message history remains LangChain's responsibility. The additional fields
 form a small, typed research ledger that later middleware can populate from
 tool results.
 """
+#研究代理图共享的结构化状态。
+# 消息历史仍然由LangChain负责。额外的字段形成了一个小型的、类型化的研究账本，后续的中间件可以从工具结果中填充。
 
 from __future__ import annotations
 
